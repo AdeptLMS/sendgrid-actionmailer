@@ -82,13 +82,20 @@ module SendGridActionMailer
         to_emails(mail.bcc).each { |bcc| p.add_bcc(bcc) }
 
         if mail['dynamic_template_data']
-          p.add_dynamic_template_data(json_parse(mail['dynamic_template_data'].value))
+          p.add_dynamic_template_data(personalization_data(mail))
         elsif mail['template_id'].nil?
           p.add_substitution(Substitution.new(key: "%asm_group_unsubscribe_raw_url%", value: "<%asm_group_unsubscribe_raw_url%>"))
           p.add_substitution(Substitution.new(key: "%asm_global_unsubscribe_raw_url%", value: "<%asm_global_unsubscribe_raw_url%>"))
           p.add_substitution(Substitution.new(key: "%asm_preferences_raw_url%", value: "<%asm_preferences_raw_url%>"))
         end
       end
+    end
+
+    def personalization_data(mail)
+      {
+        body: mail.body.decoded,
+        subject: mail.subject
+      }.merge(json_parse(mail['dynamic_template_data'].value))
     end
 
     def to_attachment(part)
@@ -182,24 +189,23 @@ module SendGridActionMailer
     end
 
     def add_mail_settings(sendgrid_mail, mail)
-      if mail['mail_settings']
-        settings = json_parse(mail['mail_settings'].value)
-        sendgrid_mail.mail_settings = MailSettings.new.tap do |m|
-          if settings[:bcc]
-            m.bcc = BccSettings.new(settings[:bcc])
-          end
-          if settings[:bypass_list_management]
-            m.bypass_list_management = BypassListManagement.new(settings[:bypass_list_management])
-          end
-          if settings[:footer]
-            m.footer = Footer.new(settings[:footer])
-          end
-          if settings[:sandbox_mode]
-            m.sandbox_mode = SandBoxMode.new(settings[:sandbox_mode])
-          end
-          if settings[:spam_check]
-            m.spam_check = SpamCheck.new(settings[:spam_check])
-          end
+      return unless mail['mail_settings']
+      settings = json_parse(mail['mail_settings'].value)
+      sendgrid_mail.mail_settings = MailSettings.new.tap do |m|
+        if settings[:bcc]
+          m.bcc = BccSettings.new(settings[:bcc])
+        end
+        if settings[:bypass_list_management]
+          m.bypass_list_management = BypassListManagement.new(settings[:bypass_list_management])
+        end
+        if settings[:footer]
+          m.footer = Footer.new(settings[:footer])
+        end
+        if settings[:sandbox_mode]
+          m.sandbox_mode = SandBoxMode.new(settings[:sandbox_mode])
+        end
+        if settings[:spam_check]
+          m.spam_check = SpamCheck.new(settings[:spam_check])
         end
       end
     end
